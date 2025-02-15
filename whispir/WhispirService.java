@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.dto.WhispirMessageRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -7,6 +8,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+
+import java.util.Arrays;
 
 @Service
 public class WhispirService {
@@ -36,9 +39,17 @@ public class WhispirService {
         headers.set("Authorization", "Bearer " + apiKey);
         headers.set("Content-Type", "application/json");
 
-        String requestBody = String.format("{\"to\": \"%s\", \"subject\": \"%s\", \"body\": \"%s\", \"templateId\": \"%s\"}", to, subject, body, smsTemplateId);
+        WhispirMessageRequest request = new WhispirMessageRequest();
+        request.setTo(to);
+        request.setMessageTemplateId(smsTemplateId);
+        WhispirMessageRequest.MessageAttributes attributes = new WhispirMessageRequest.MessageAttributes();
+        attributes.setAttribute(Arrays.asList(
+            new WhispirMessageRequest.Attribute("Subject", subject),
+            new WhispirMessageRequest.Attribute("Body", body)
+        ));
+        request.setMessageattributes(attributes);
 
-        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+        HttpEntity<WhispirMessageRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
@@ -52,12 +63,17 @@ public class WhispirService {
         headers.set("Authorization", "Bearer " + apiKey);
         headers.set("Content-Type", "application/json");
 
-        String requestBody = String.format(
-            "{\"to\": \"%s\", \"messageTemplateId\": \"%s\", \"messageattributes\": { \"attribute\": [ {\"name\": \"TransactionID\", \"value\": \"%s\"}, {\"name\": \"CompanyName\", \"value\": \"%s\"} ] } }",
-            to, otpTemplateId, transactionId, companyName
-        );
+        WhispirMessageRequest request = new WhispirMessageRequest();
+        request.setTo(to);
+        request.setMessageTemplateId(otpTemplateId);
+        WhispirMessageRequest.MessageAttributes attributes = new WhispirMessageRequest.MessageAttributes();
+        attributes.setAttribute(Arrays.asList(
+            new WhispirMessageRequest.Attribute("TransactionID", transactionId),
+            new WhispirMessageRequest.Attribute("CompanyName", companyName)
+        ));
+        request.setMessageattributes(attributes);
 
-        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+        HttpEntity<WhispirMessageRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
