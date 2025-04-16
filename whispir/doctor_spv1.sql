@@ -16,13 +16,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Drop temporary tables if they exist
-    IF OBJECT_ID('tempdb..#TBL_DOC_ANS_QUES') IS NOT NULL DROP TABLE #TBL_DOC_ANS_QUES;
-    IF OBJECT_ID('tempdb..#TBL_DOC_ACTV') IS NOT NULL DROP TABLE #TBL_DOC_ACTV;
-
-    -- Create temporary table for answered questions
+    -- Temporary table for answered questions
     CREATE TABLE #TBL_DOC_ANS_QUES (
-        DID BIGINT,
+        DID BIGINT PRIMARY KEY,
         VAL BIGINT
     );
 
@@ -35,12 +31,11 @@ BEGIN
     INNER JOIN dbo.DOCTORCLINICMAP DCM ON DCM.ID = AR.CONFIRMEDDOCTORCLINICMAPID
     INNER JOIN dbo.DOCTORSPECIALITYMAP DSM ON DSM.ID = DCM.PARENTDOCTORSECIALITYMAPID
     INNER JOIN dbo.DOCTOR DOCI ON DOCI.ID = DSM.PARENTDOCTORID
-    INNER JOIN dbo.SPECIALTY SPTI ON SPTI.ID = DSM.PARENTSPECIALTYID
     GROUP BY DOCI.ID;
 
-    -- Create temporary table for doctor activity
+    -- Temporary table for doctor activity
     CREATE TABLE #TBL_DOC_ACTV (
-        DID BIGINT,
+        DID BIGINT PRIMARY KEY,
         WATCHLIST INT,
         SUSPENDED INT,
         TERMINATION INT,
