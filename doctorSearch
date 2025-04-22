@@ -1,45 +1,59 @@
 export function DoctorList() {
-    const { permissions } = useAuth();
-    const [isLoading, setLoading] = useState(false);
-    const [items, setItems] = useState<DoctorSearchResult[]>([]);
-    const [totalRows, setTotalRows] = useState(0);
-    const [searchForm, setSearchForm] = useState<DoctorSearchForm>(
-        new DoctorSearchForm(new DatatableInput(0, Constants.DATATABLE_PAGE_SIZE, 0), "p_DoctorName", "")
-    );
-    const [isFirstSearch, setIsFirstSearch] = useState(true); // Added flag to prevent duplicate calls
+  const { permissions } = useAuth();
+  const [isLoading, setLoading] = useState(false);
+  const [items, setItems] = useState<DoctorSearchResult[]>([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [searchForm, setSearchForm] = useState<DoctorSearchForm>(
+    new DoctorSearchForm(new DatatableInput(0, Constants.DATATABLE_PAGE_SIZE, 0), "p_DoctorName", "")
+  );
+  const [isFirstSearch, setIsFirstSearch] = useState(true);
 
-    const fetchDoctorData = async (page: number, type: string, value: string, doctype?: string) => {
-        setLoading(true);
-        const sf = new DoctorSearchForm(
-            new DatatableInput(page, Constants.DATATABLE_PAGE_SIZE, 0),
-            type,
-            value
-        );
-        if (doctype && doctype !== '0') sf.doctorType = doctype;
-        else sf.doctorType = undefined;
-        sf.searchSubmitted = true;
-        setSearchForm(sf);
+  // Debounced API call to prevent duplicate requests
+  const fetchDoctorData = useCallback(
+    debounce(async (page: number, type: string, value: string, doctorType?: string) => {
+      if (isLoading) return;
+      setLoading(true);
 
-        const response = await SearchDoctorList(sf);
+      const updatedSearchForm = new DoctorSearchForm(
+        new DatatableInput(page, Constants.DATATABLE_PAGE_SIZE, 0),
+        type,
+        value
+      );
+      if (doctorType && doctorType !== "0") updatedSearchForm.doctorType = doctorType;
+
+      updatedSearchForm.searchSubmitted = true;
+      setSearchForm(updatedSearchForm);
+
+      try {
+        const response = await SearchDoctorList(updatedSearchForm);
         setItems(response.data.data);
         setTotalRows(response.data.recordsTotal);
+      } finally {
         setLoading(false);
-        StorageHelper.setDoctorSearchForm(sf);
-    };
+      }
+    }, 300), // Debounce by 300ms
+    [isLoading]
+  );
 
-    const formik = useFormik({
-        initialValues: searchForm,
-        enableReinitialize: true,
-        onSubmit: async (values, { setSubmitting }) => {
-            setSubmitting(true);
-            if (isFirstSearch) {
-                setIsFirstSearch(false); // Prevent duplicate calls on first search
-            } else {
-                await fetchDoctorData(1, values.type, values.value, values.doctorType);
-            }
-            setSubmitting(false);
-        },
-    });
+  // Load saved search form on component mount
+  useEffect(() => {
+    const savedSearchForm = StorageHelper.getDoctorSearchForm();
+    if (savedSearchForm) {
+      savedSearchForm.searchSubmitted = false;
+      setSearchForm(savedSearchForm);
+    }
+  }, []);
+
+  // Handle form submission
+  const handleSearch = async (type: string, value: string, doctorType?: string) => {
+    fetchDoctorData(0, type, value, doctorType); // Always start from the first page
+    setIsFirstSearch(false);
+  };
+
+  // Handle pagination
+  const handlePageChange = (page: number) => {
+    fetchDoctorData(page, searchForm.type, searchForm.value, searchForm.doctorType);
+  };
 
     const searchTypeList = [
         { code: "P_DoctorName", name: "SMC Name" },
