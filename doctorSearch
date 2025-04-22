@@ -1,59 +1,44 @@
 export function DoctorList() {
-  const { permissions } = useAuth();
-  const [isLoading, setLoading] = useState(false);
-  const [items, setItems] = useState<DoctorSearchResult[]>([]);
-  const [totalRows, setTotalRows] = useState(0);
-  const [searchForm, setSearchForm] = useState<DoctorSearchForm>(
-    new DoctorSearchForm(new DatatableInput(0, Constants.DATATABLE_PAGE_SIZE, 0), "p_DoctorName", "")
-  );
-  const [isFirstSearch, setIsFirstSearch] = useState(true);
+    const { permissions } = useAuth();
+    const [isLoading, setLoading] = useState(false);
+    const [items, setItems] = useState<DoctorSearchResult[]>([]);
+    const [totalRows, setTotalRows] = useState(0);
+    const [searchForm, setSearchForm] = useState<DoctorSearchForm>(
+        new DoctorSearchForm(new DatatableInput(0, Constants.DATATABLE_PAGE_SIZE, 0), "p_DoctorName", "")
+    );
+    const searchFormRef = useRef<DoctorSearchForm>(searchForm); // Use a ref to avoid triggering re-renders
 
-  // Debounced API call to prevent duplicate requests
-  const fetchDoctorData = useCallback(
-    debounce(async (page: number, type: string, value: string, doctorType?: string) => {
-      if (isLoading) return;
-      setLoading(true);
+    const fetchDoctorData = async (page: number, type: string, value: string, doctype?: string) => {
+        setLoading(true);
 
-      const updatedSearchForm = new DoctorSearchForm(
-        new DatatableInput(page, Constants.DATATABLE_PAGE_SIZE, 0),
-        type,
-        value
-      );
-      if (doctorType && doctorType !== "0") updatedSearchForm.doctorType = doctorType;
+        const sf = new DoctorSearchForm(
+            new DatatableInput(page, Constants.DATATABLE_PAGE_SIZE, 0),
+            type,
+            value
+        );
+        if (doctype && doctype !== '0') sf.doctorType = doctype;
+        else sf.doctorType = undefined;
+        sf.searchSubmitted = true;
 
-      updatedSearchForm.searchSubmitted = true;
-      setSearchForm(updatedSearchForm);
+        searchFormRef.current = sf; // Update the ref instead of state
+        setSearchForm(sf); // Keep this for UI updates if necessary
 
-      try {
-        const response = await SearchDoctorList(updatedSearchForm);
+        const response = await SearchDoctorList(sf);
         setItems(response.data.data);
         setTotalRows(response.data.recordsTotal);
-      } finally {
         setLoading(false);
-      }
-    }, 300), // Debounce by 300ms
-    [isLoading]
-  );
+        StorageHelper.setDoctorSearchForm(sf);
+    };
 
-  // Load saved search form on component mount
-  useEffect(() => {
-    const savedSearchForm = StorageHelper.getDoctorSearchForm();
-    if (savedSearchForm) {
-      savedSearchForm.searchSubmitted = false;
-      setSearchForm(savedSearchForm);
-    }
-  }, []);
-
-  // Handle form submission
-  const handleSearch = async (type: string, value: string, doctorType?: string) => {
-    fetchDoctorData(0, type, value, doctorType); // Always start from the first page
-    setIsFirstSearch(false);
-  };
-
-  // Handle pagination
-  const handlePageChange = (page: number) => {
-    fetchDoctorData(page, searchForm.type, searchForm.value, searchForm.doctorType);
-  };
+    const formik = useFormik({
+        initialValues: searchForm,
+        enableReinitialize: true,
+        onSubmit: async (values, { setSubmitting }) => {
+            setSubmitting(true);
+            await fetchDoctorData(1, values.type, values.value, values.doctorType);
+            setSubmitting(false);
+        },
+    });
 
     const searchTypeList = [
         { code: "P_DoctorName", name: "SMC Name" },
@@ -76,6 +61,7 @@ export function DoctorList() {
         const oldSearch = StorageHelper.getDoctorSearchForm();
         oldSearch.searchSubmitted = false;
         setSearchForm(oldSearch);
+        searchFormRef.current = oldSearch; // Sync the ref with the initial state
     }, []);
 
     return (
@@ -135,7 +121,7 @@ export function DoctorList() {
                             paginationTotalRows={totalRows}
                             onChangePage={(page: number) => {
                                 setLoading(true);
-                                fetchDoctorData(page, searchForm.type, searchForm.value, searchForm.doctorType);
+                                fetchDoctorData(page, searchFormRef.current.type, searchFormRef.current.value, searchFormRef.current.doctorType);
                             }}
                             pagination
                             paginationComponent={Pagination}
