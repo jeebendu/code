@@ -1,0 +1,141 @@
+export function DoctorList() {
+    const { permissions } = useAuth();
+    const [isLoading, setLoading] = useState(false);
+    const [items, setItems] = useState<DoctorSearchResult[]>([]);
+    const [totalRows, setTotalRows] = useState(0);
+    const [searchForm, setSearchForm] = useState<DoctorSearchForm>(
+        new DoctorSearchForm(new DatatableInput(0, Constants.DATATABLE_PAGE_SIZE, 0), "p_DoctorName", "")
+    );
+    const [isFirstSearch, setIsFirstSearch] = useState(true); // Added flag to prevent duplicate calls
+
+    const fetchDoctorData = async (page: number, type: string, value: string, doctype?: string) => {
+        setLoading(true);
+        const sf = new DoctorSearchForm(
+            new DatatableInput(page, Constants.DATATABLE_PAGE_SIZE, 0),
+            type,
+            value
+        );
+        if (doctype && doctype !== '0') sf.doctorType = doctype;
+        else sf.doctorType = undefined;
+        sf.searchSubmitted = true;
+        setSearchForm(sf);
+
+        const response = await SearchDoctorList(sf);
+        setItems(response.data.data);
+        setTotalRows(response.data.recordsTotal);
+        setLoading(false);
+        StorageHelper.setDoctorSearchForm(sf);
+    };
+
+    const formik = useFormik({
+        initialValues: searchForm,
+        enableReinitialize: true,
+        onSubmit: async (values, { setSubmitting }) => {
+            setSubmitting(true);
+            if (isFirstSearch) {
+                setIsFirstSearch(false); // Prevent duplicate calls on first search
+            } else {
+                await fetchDoctorData(1, values.type, values.value, values.doctorType);
+            }
+            setSubmitting(false);
+        },
+    });
+
+    const searchTypeList = [
+        { code: "P_DoctorName", name: "SMC Name" },
+        { code: "p_DisplayName", name: "Display Name" },
+        { code: "P_MCRNumber", name: "MCR Number" },
+        { code: "P_Speciality", name: "Specialty" },
+        { code: "P_SubSpeciality", name: "Sub Specialty" },
+        { code: "p_Clinic", name: "Clinic Name" },
+        { code: "P_TOSP", name: "Inpatient Fee Schedule (TOSP)" },
+    ];
+
+    const searchStatusTypeList = [
+        { code: "P_WatchListed", name: "Watchlist" },
+        { code: "P_Suspended", name: "Suspend List" },
+        { code: "P_Terminated", name: "Terminated" },
+        { code: "P_ActivePanel", name: "Active Panel" },
+    ];
+
+    useEffect(() => {
+        const oldSearch = StorageHelper.getDoctorSearchForm();
+        oldSearch.searchSubmitted = false;
+        setSearchForm(oldSearch);
+    }, []);
+
+    return (
+        <>
+            {isLoading && <Loading />}
+            <KTCard>
+                <KTCardHead title="Search Doctor">
+                    {permissions?.canAddDoctor && (
+                        <KTCardHeadToolBar>
+                            <Link className="btn btn-sm btn-secondary" to="/Doctor/Add">
+                                ADD DOCTOR
+                            </Link>
+                        </KTCardHeadToolBar>
+                    )}
+                </KTCardHead>
+                <KTCardBody className="py-4">
+                    <form className="form w-100 my-5" onSubmit={formik.handleSubmit}>
+                        <div className="row">
+                            <div className="col-x1-2 col-md-3 col-sm-4 my-2">
+                                <KTInputBox
+                                    placeholder="Search Doctor"
+                                    formikProps={formik.getFieldProps('value')}
+                                    maxLength={128}
+                                />
+                            </div>
+                            <div className="col-x1-2 col-md-3 col-sm-4 my-2">
+                                <KTSelectBox
+                                    defaultPlaceholder={false}
+                                    formikProps={formik.getFieldProps('type')}
+                                    optionsList={searchTypeList.map((x) => new KeyValueOption(x.code, x.name))}
+                                    onChangeHandler={(val) => formik.setFieldValue('type', val)}
+                                />
+                            </div>
+                            <div className="col-x1-2 col-md-3 col-sm-4 my-2">
+                                <KTSelectBox
+                                    formikProps={formik.getFieldProps('doctorType')}
+                                    optionsList={searchStatusTypeList.map((x) => new KeyValueOption(x.code, x.name))}
+                                    onChangeHandler={(val) => formik.setFieldValue('doctorType', val)}
+                                />
+                            </div>
+                            <div className="col-x1-2 col-md-3 col-sm-4 my-2">
+                                <button
+                                    type="submit"
+                                    id="search_submit"
+                                    className="btn btn-sm btn-brand text-light"
+                                >
+                                    <span className="indicator-label">SEARCH</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <div className={Constants.DATATABLE_STYLE_REACT}>
+                        <DataTable
+                            columns={DoctorTableColumns(searchForm)}
+                            data={items}
+                            paginationServer
+                            paginationTotalRows={totalRows}
+                            onChangePage={(page: number) => {
+                                setLoading(true);
+                                fetchDoctorData(page, searchForm.type, searchForm.value, searchForm.doctorType);
+                            }}
+                            pagination
+                            paginationComponent={Pagination}
+                            paginationDefaultPage={searchForm.dataTablesInput.draw}
+                            noDataComponent={
+                                <EmptyDatatable
+                                    columns={DoctorTableColumns()}
+                                    show={searchForm.searchSubmitted}
+                                />
+                            }
+                        />
+                    </div>
+                </KTCardBody>
+            </KTCard>
+        </>
+    );
+}
