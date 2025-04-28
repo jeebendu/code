@@ -93,8 +93,14 @@ BEGIN
     FROM FilteredData
         
     ORDER BY 
-    CASE WHEN LOWER(@status) = 'new' THEN appt.date_of_submission ELSE NULL END ASC,
-    CASE WHEN LOWER(@status) <> 'new' THEN appt.date_of_submission ELSE NULL END DESC
+        CASE 
+            WHEN @Order = 'ASC' THEN appt.date_of_submission
+            ELSE NULL
+        END ASC,
+        CASE 
+            WHEN @Order = 'DESC' THEN appt.date_of_submission
+            ELSE NULL
+        END DESC
         
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
 END;
