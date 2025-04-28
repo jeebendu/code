@@ -91,6 +91,6 @@ BEGIN
     -- Paginated Data
     SELECT @totalCount AS totalCount, @filteredCount AS filteredCount, *
     FROM FilteredData
-    ORDER BY appt.id ' + @orderDirection + '
+    CASE WHEN LOWER(@status) = 'new' THEN appt.id ELSE -appt.id END
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
 END;
