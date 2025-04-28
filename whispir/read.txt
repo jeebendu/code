@@ -1,0 +1,24 @@
+Business Logic:
+Redeem Voucher
+
+The voucher must have a status of "Valid".
+
+The current user must be of type Clinic User.
+
+View Voucher
+
+The current user must be of type Admin User.
+
+The voucher must have portal status active (i.e., portalStatus == true).
+
+Edit Voucher
+
+The voucher must have a status of "Valid".
+
+The current user must be of type Admin User.
+
+The voucher must have portal status active.
+
+Change Voucher Status
+
+The voucher must have a valid ID assigned.
