@@ -91,6 +91,10 @@ BEGIN
     -- Paginated Data
     SELECT @totalCount AS totalCount, @filteredCount AS filteredCount, *
     FROM FilteredData
-    CASE WHEN LOWER(@status) = 'new' THEN appt.id ELSE -appt.id END
+        
+    ORDER BY 
+    CASE WHEN LOWER(@status) = 'new' THEN appt.date_of_submission ELSE NULL END ASC,
+    CASE WHEN LOWER(@status) <> 'new' THEN appt.date_of_submission ELSE NULL END DESC
+        
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
 END;
