@@ -12,6 +12,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- Determine the ORDER BY direction based on @status
+    DECLARE @orderDirection NVARCHAR(4);
+    IF LOWER(@status) = 'new'
+        SET @orderDirection = 'ASC';
+    ELSE
+        SET @orderDirection = 'DESC';
+
     -- Adjust @toDate to the end of the day if it is not NULL
     IF @toDate IS NOT NULL
     BEGIN
@@ -84,6 +91,6 @@ BEGIN
     -- Paginated Data
     SELECT @totalCount AS totalCount, @filteredCount AS filteredCount, *
     FROM FilteredData
-    ORDER BY appt.id
+    ORDER BY appt.id ' + @orderDirection + '
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
 END;
