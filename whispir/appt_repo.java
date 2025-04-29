@@ -80,4 +80,30 @@ public interface AppointmentRepository extends JpaRepository<Apptrequeststatusre
 
 
 
+SELECT *
+FROM Appointments appt
+JOIN ApptStatus apptstatus ON appt.StatusId = apptstatus.Id
+WHERE 1 = 1
+  -- CaseManagerId matching logic
+  AND (
+      (@CaseManagerId = 0 OR @CaseManagerId IS NULL)
+      OR appt.CASEMANAGERID = @CaseManagerId
+  )
+  -- Dynamic status filter logic
+  AND (
+      (@FilterType = 'myown' AND lower(apptstatus.NAME) IN ('assigned', 'pending') AND appt.CASEMANAGERID = @CaseManagerId)
+      OR
+      (@FilterType = 'new' AND lower(apptstatus.NAME) IN ('assigned', 'new'))
+      OR
+      (@FilterType IS NULL AND lower(apptstatus.NAME) = 
+          CASE 
+              WHEN lower(@Status) IS NULL OR lower(@Status) = '' 
+              THEN lower(apptstatus.NAME)
+              ELSE lower(@Status)
+          END
+      )
+  );
+
+
+
 
