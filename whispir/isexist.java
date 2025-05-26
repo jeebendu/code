@@ -21,3 +21,7 @@ boolean existOverlappingRecordExcludingId(
     @Param("id") Long id,
     @Param("clinicId") Long clinicId
 );
+
+
+@Query("SELECT CASE WHEN COUNT(pc) > 0 THEN true ELSE false END FROM PanelSettingsClinic pc WHERE pc.clinic.id = :clinicId AND (:id IS NULL OR pc.id <> :id) AND pc.fromdate <= :toDate AND (pc.todate IS NULL OR pc.todate >= :fromDate)")
+boolean existOverlappingRecordExcludingId(Date fromDate, Date toDate, Long id, Long clinicId);
