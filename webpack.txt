@@ -1,0 +1,87 @@
+Install Required Packages
+
+Run inside your project root:
+
+npm install --save-dev webpack webpack-cli webpack-dev-server \
+@babel/core @babel/preset-env @babel/preset-react @babel/preset-typescript \
+babel-loader html-webpack-plugin css-loader style-loader ts-loader
+
+
+  Create webpack.config.js in root
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+
+module.exports = {
+  entry: "./src/index.tsx", // adjust if your entry file is index.js
+  output: {
+    path: path.resolve(__dirname, "dist"),
+    filename: "bundle.[contenthash].js",
+    clean: true,
+    publicPath: "/", // needed for React Router
+  },
+  resolve: {
+    extensions: [".js", ".jsx", ".ts", ".tsx"],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.(ts|tsx|js|jsx)$/,
+        exclude: /node_modules/,
+        use: "babel-loader",
+      },
+      {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"],
+      },
+      {
+        test: /\.(png|jpg|jpeg|gif|svg)$/i,
+        type: "asset/resource",
+      },
+    ],
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: "./public/index.html",
+      favicon: "./public/favicon.ico", // optional
+    }),
+  ],
+  devServer: {
+    static: path.join(__dirname, "public"),
+    port: 3000,
+    historyApiFallback: true, // so React Router works
+    hot: true,
+    open: true,
+  },
+  mode: "development",
+};
+
+
+
+Add .babelrc
+
+Create a .babelrc in root:
+
+{
+  "presets": [
+    "@babel/preset-env",
+    "@babel/preset-react",
+    "@babel/preset-typescript"
+  ]
+}
+
+4️⃣ Update package.json Scripts
+
+Replace CRA/Vite scripts with Webpack:
+
+"scripts": {
+  "start": "webpack serve --config webpack.config.js --mode development",
+  "build": "webpack --config webpack.config.js --mode production"
+}
+
+5️⃣ Run the Project
+npm run start
+
+
+Your app will run on http://localhost:3000
+ with Webpack 🎉
+
