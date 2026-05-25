@@ -1,50 +1,67 @@
-FROM acrsg01seanshared01.azurecr.io/hardened/platform/nodejs:22
+# =========================
+# Stage 1: Build
+# =========================
+FROM acrsg@lseansharedel.azurecr.io/hardened/platform/nodejs:22 AS build
+
+WORKDIR /app-rjs
+
+COPY . .
+
+USER root
+
+# Update openssl package
+RUN apk update && apk add --no-cache openssl
+
+# Force tar version for dependencies
+RUN npm pkg set "overrides.tar=7.5.11"
+
+# Install dependencies and build app
+RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install && npm run build
+
+
+# =========================
+# Stage 2: Runtime
+# =========================
+FROM acrsg@lseansharedel.azurecr.io/hardened/platform/nodejs:22
 
 WORKDIR /app-rjs
 
 USER root
 
+# Update openssl package
 RUN apk update && apk add --no-cache openssl
 
-# Copy dependency manifests first for layer cache efficiency
-COPY package*.json .npmrc* ./
+# Copy build artifacts
+COPY --from=build /app-rjs/build ./build
+COPY --from=build /app-rjs/.npmrc /root/.npmrc
 
-RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install
+# Update npm
+RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g npm@latest serve
 
-COPY . .
+# Fix vulnerable cross-spawn
+RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g cross-spawn@7.0.5
 
-RUN npm run build
+# Fix vulnerable tar
+RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g tar@7.5.11
 
-# Remove node_modules — not needed to serve static files
-RUN rm -rf node_modules
-
-# Remove private registry config before global install — those packages are on public npm only
-RUN rm -f /root/.npmrc
-
-RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g \
-    --legacy-peer-deps \
-    --unsafe-perm \
-    --no-audit \
-    --no-fund \
-    cross-spawn@7.0.5 \
-    tar@7.5.11 \
-    brace-expansion@2.1.1 \
-    serve@14.2.6
-
-# Remove vulnerable versions bundled inside npm itself
-RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/cross-spawn || true
+# Remove vulnerable brace-expansion bundled inside npm (not needed at runtime)
 RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/brace-expansion || true
-RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/tar || true
 
-ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:${PATH}"
+# Verify installed versions
+RUN npm ls -g cross-spawn || true
+RUN npm ls -g tar || true
+RUN npm --version
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create non-root user
+RUN addgroup -S nodejs -g 1001 && \
+    adduser -S nextjs -u 1001
 
+# Set permissions
 RUN chown -R nextjs:nodejs /app-rjs
 
+# Switch to non-root user
 USER nextjs
 
 EXPOSE 8080
 
-CMD ["/usr/local/bin/serve", "-s", "build", "-l", "8080"]
+CMD ["serve", "-s", "build", "-l", "8080"]
