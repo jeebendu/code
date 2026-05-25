@@ -18,7 +18,9 @@ RUN npm run build
 # Remove node_modules — not needed to serve static files
 RUN rm -rf node_modules
 
-# Install patched global packages (npm needs its bundled tar intact at this point)
+# Remove private registry config before global install — those packages are on public npm only
+RUN rm -f /root/.npmrc
+
 RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g \
     --legacy-peer-deps \
     --unsafe-perm \
@@ -28,9 +30,6 @@ RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g \
     tar@7.5.11 \
     brace-expansion@2.1.1 \
     serve@14.2.6
-
-# Remove registry credentials
-RUN rm -f /root/.npmrc
 
 # Remove vulnerable versions bundled inside npm itself
 RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/cross-spawn || true
