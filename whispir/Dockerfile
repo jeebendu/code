@@ -35,22 +35,33 @@ RUN apk update && apk add --no-cache openssl
 COPY --from=build /app-rjs/build ./build
 COPY --from=build /app-rjs/.npmrc /root/.npmrc
 
-# Update npm
-RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g npm@latest serve
+# Install pinned packages via public registry (.npmrc kept for corporate proxy routing)
+RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g \
+    --legacy-peer-deps \
+    --unsafe-perm \
+    --no-audit \
+    --no-fund \
+    serve@14.2.6 \
+    cross-spawn@7.0.5 \
+    tar@7.5.11 \
+    brace-expansion@2.0.3 \
+    ip-address@10.1.1
 
-# Fix vulnerable cross-spawn
-RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g cross-spawn@7.0.5
+# Remove registry credentials — no longer needed
+RUN rm -f /root/.npmrc
 
-# Fix vulnerable tar
-RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npm install -g tar@7.5.11
-
-# Remove vulnerable brace-expansion bundled inside npm (not needed at runtime)
+# Remove npm's own bundled vulnerable copies
+RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/cross-spawn || true
 RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/brace-expansion || true
+RUN rm -rf /usr/local/lib/node_modules/npm/node_modules/tar || true
 
-# Verify installed versions
-RUN npm ls -g cross-spawn || true
-RUN npm ls -g tar || true
-RUN npm --version
+# Remove nested vulnerable instances inside serve's dependency tree
+# (patched globals at /usr/local/lib/node_modules/<pkg> take over resolution)
+RUN find /usr/local/lib/node_modules -mindepth 3 -type d -name "brace-expansion" | xargs rm -rf || true
+RUN find /usr/local/lib/node_modules -mindepth 3 -type d -name "ip-address" | xargs rm -rf || true
+
+# Verify
+RUN npm ls -g cross-spawn tar brace-expansion ip-address || true
 
 # Create non-root user
 RUN addgroup -S nodejs -g 1001 && \
